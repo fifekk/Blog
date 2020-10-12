@@ -6,6 +6,7 @@ from blog.forms import EmailPostForm, CommentForm
 from .models import Post, Comment
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from mysite.secrets import EMAIL_HOST_USER
+from taggit.models import Tag
 
 
 # Create your views here.
@@ -18,8 +19,13 @@ class PostListView(ListView):
     template_name = 'blog/post/list.html'
 
 
-def post_list(request):
+def post_list(request, tag_slug=None):
     object_list = Post.published.all()
+    tag = None
+
+    if tag_slug:
+        tag = get_object_or_404(Tag, slug=tag_slug)
+        object_list = object_list.filter(tags__in=[tag])
     # show 3 posts on each page
     paginator = Paginator(object_list, 3)
     page = request.GET.get('page')
@@ -30,7 +36,8 @@ def post_list(request):
     except EmptyPage:
         posts = paginator.page(paginator.num_pages)
     return render(request, 'blog/post/list.html', {'page': page,
-                                                   'posts': posts})
+                                                   'posts': posts,
+                                                   'tag': tag})
 
 
 # single post view
@@ -67,9 +74,6 @@ def post_detail(request, year, month, day, post):
                    'comments': comments,
                    'new_comment': new_comment,
                    'comment_form': comment_form})
-
-
-
 
 
 def post_share(request, post_id):
