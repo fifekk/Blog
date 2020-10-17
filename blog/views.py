@@ -1,6 +1,7 @@
 from django.core.mail import send_mail
 from django.shortcuts import render, get_object_or_404
 from django.views.generic import ListView
+from django.db.models import Count
 
 from blog.forms import EmailPostForm, CommentForm
 from .models import Post, Comment
@@ -68,12 +69,23 @@ def post_detail(request, year, month, day, post):
         # GET request
         comment_form = CommentForm()
 
+    # List of similar posts
+    # Retrieve list of ids of current post; Flat gives you list of single elements not list of tuples
+    post_tags_ids = post.tags.values_list('id', flat=True)
+    # Retrieve all published posts that contain any of these tags, excluding current post
+    similar_posts = Post.published.filter(tags__in=post_tags_ids).exclude(id=post.id)
+    # Generate field same_tag that contains the number of tags and order result by number of shared tags and by publish
+    # both descending
+    similar_posts = similar_posts.annotate(same_tag=Count('tags')).order_by('-same_tag', '-publish')[:4]
+    # similar_posts = post.tags.similar_objects()
+
     return render(request,
                   'blog/post/detail.html',
                   {'post': post,
                    'comments': comments,
                    'new_comment': new_comment,
-                   'comment_form': comment_form})
+                   'comment_form': comment_form,
+                   'similar_posts': similar_posts})
 
 
 def post_share(request, post_id):
